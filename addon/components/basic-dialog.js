@@ -1,6 +1,6 @@
-import { on } from '@ember/object/evented';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { oneWay } from '@ember/object/computed';
 import { isEmpty } from '@ember/utils';
 import { inject as service } from '@ember/service';
 import layout from '../templates/components/basic-dialog';
@@ -14,7 +14,7 @@ export default Component.extend({
   wrapperClassNames: null,
 
   modalService: service('modal-dialog'),
-  destinationElementId: computed.oneWay('modalService.destinationElementId'),
+  destinationElementId: oneWay('modalService.destinationElementId'),
 
   variantWrapperClass: 'emd-static',
   containerClassNamesString: computed('containerClassNames.[]', 'targetAttachmentClass', 'attachmentClass', 'containerClass', function() {
@@ -52,20 +52,11 @@ export default Component.extend({
     return this.get('overlayPosition') === 'sibling';
   }),
 
-  isIOS: computed(function() {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent);
-  }),
-
-  makeOverlayClickableOnIOS: on('didInsertElement', function() {
-    if (this.get('isIOS')) {
-      document.querySelector('div[data-ember-modal-dialog-overlay]').style.cursor = 'pointer';
-    }
-  }),
-
   didInsertElement() {
     if (!this.get('clickOutsideToClose')) {
       return;
     }
+    this.makeOverlayClickableOnIOS();
 
     this.handleClick = ({ target }) => {
       // if the click has already resulted in the target
@@ -80,7 +71,8 @@ export default Component.extend({
       }
 
       // if the click is within the dialog, do nothing
-      if (document.querySelector(modalSelector).contains(target)) {
+      let modalEl = document.querySelector(modalSelector);
+      if (modalEl && modalEl.contains(target)) {
         return;
       }
 
@@ -93,7 +85,7 @@ export default Component.extend({
     setTimeout(registerClick);
 
     if (this.get('isIOS')) {
-      const registerTouch = () => document.addEventListener.on('touchend', this.handleClick);
+      const registerTouch = () => document.addEventListener('touchend', this.handleClick);
       setTimeout(registerTouch);
     }
     this._super(...arguments);
@@ -105,5 +97,18 @@ export default Component.extend({
       document.removeEventListener('touchend', this.handleClick);
     }
     this._super(...arguments);
+  },
+
+  isIOS: computed(function() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent);
+  }),
+
+  makeOverlayClickableOnIOS: function() {
+    if (this.get('isIOS')) {
+      let overlayEl = document.querySelector('div[data-emd-overlay]');
+      if (overlayEl) {
+        overlayEl.style.cursor = 'pointer';
+      }
+    }
   }
 });
